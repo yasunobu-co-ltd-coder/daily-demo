@@ -60,7 +60,7 @@ export default function VoiceInput({ onTranscript }: VoiceInputProps) {
       className={`px-6 py-3 rounded-lg font-medium transition flex items-center gap-2 ${
         isListening
           ? 'bg-red-500 hover:bg-red-600 text-white'
-          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+          : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
       }`}
     >
       {isListening ? (
