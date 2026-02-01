@@ -3,7 +3,6 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '../../utils/supabase'
 import { useRouter } from 'next/navigation'
 import VoiceInput from '../../components/VoiceInput'
 import ThemeToggle from '../../components/ThemeToggle'
@@ -13,23 +12,11 @@ interface Report {
   content: string
   date: string
   created_at: string
-  profiles: {
-    email: string
-  }
-}
-
-interface Profile {
-  id: string
   email: string
-  company_id: string
-  companies: {
-    name: string
-  }
 }
 
 export default function Dashboard() {
-  const [user, setUser] = useState<any>(null)
-  const [profile, setProfile] = useState<Profile | null>(null)
+  const [user, setUser] = useState<{ email: string; company_name: string } | null>(null)
   const [report, setReport] = useState('')
   const [reports, setReports] = useState<Report[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,66 +24,55 @@ export default function Dashboard() {
   const router = useRouter()
 
   useEffect(() => {
-    const initialize = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/login')
-        return
-      }
-      setUser(user)
-
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*, companies(name)')
-        .eq('id', user.id)
-        .single()
-
-      if (profileData) {
-        setProfile(profileData)
-        await fetchReports(profileData.company_id)
-      }
-      setLoading(false)
+    // デモモード: localStorageからユーザー情報を取得
+    const storedUser = localStorage.getItem('demo_user')
+    if (!storedUser) {
+      router.push('/login')
+      return
     }
-    initialize()
+    setUser(JSON.parse(storedUser))
+
+    // サンプル日報データ
+    setReports([
+      {
+        id: '1',
+        content: '本日の業務:\n・顧客対応 3件\n・資料作成\n・会議参加（営業ミーティング）',
+        date: new Date().toISOString().split('T')[0],
+        created_at: new Date(Date.now() - 3600000).toISOString(),
+        email: 'tanaka@example.com'
+      },
+      {
+        id: '2',
+        content: '開発タスク完了:\n・機能A実装\n・バグ修正 2件\n・コードレビュー',
+        date: new Date().toISOString().split('T')[0],
+        created_at: new Date(Date.now() - 7200000).toISOString(),
+        email: 'suzuki@example.com'
+      }
+    ])
+    setLoading(false)
   }, [router])
-
-  const fetchReports = async (companyId: string) => {
-    const today = new Date().toISOString().split('T')[0]
-    const { data } = await supabase
-      .from('reports')
-      .select('*, profiles(email)')
-      .eq('company_id', companyId)
-      .eq('date', today)
-      .order('created_at', { ascending: false })
-
-    if (data) setReports(data)
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!user || !profile || !report.trim()) return
+    if (!user || !report.trim()) return
 
     setSubmitting(true)
-    const { error } = await supabase
-      .from('reports')
-      .insert([{
-        user_id: user.id,
-        company_id: profile.company_id,
-        content: report,
-        date: new Date().toISOString().split('T')[0]
-      }])
 
-    if (error) {
-      alert('エラー: ' + error.message)
-    } else {
-      setReport('')
-      await fetchReports(profile.company_id)
+    // デモモード: ローカルで日報を追加
+    const newReport: Report = {
+      id: Date.now().toString(),
+      content: report,
+      date: new Date().toISOString().split('T')[0],
+      created_at: new Date().toISOString(),
+      email: user.email
     }
+    setReports([newReport, ...reports])
+    setReport('')
     setSubmitting(false)
   }
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
+  const handleLogout = () => {
+    localStorage.removeItem('demo_user')
     router.push('/login')
   }
 
@@ -115,9 +91,7 @@ export default function Dashboard() {
         <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
           <div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">日報アプリ</h1>
-            {profile?.companies && (
-              <p className="text-sm text-gray-600 dark:text-gray-400">{profile.companies.name}</p>
-            )}
+            <p className="text-sm text-gray-600 dark:text-gray-400">{user?.company_name}</p>
           </div>
           <div className="flex items-center gap-4">
             <ThemeToggle />
@@ -176,7 +150,7 @@ export default function Dashboard() {
                 <div key={r.id} className="border-b border-gray-100 dark:border-gray-700 pb-4 last:border-0">
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {r.profiles?.email || '不明'}
+                      {r.email}
                     </span>
                     <span className="text-xs text-gray-500 dark:text-gray-400">
                       {new Date(r.created_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
@@ -191,7 +165,7 @@ export default function Dashboard() {
       </main>
 
       <footer className="text-center py-4 text-gray-500 dark:text-gray-400 text-xs">
-        Ver 0.1 - 安信工業 Performax
+        Ver 0.1 - 安信工業 Performax（デモモード）
       </footer>
     </div>
   )

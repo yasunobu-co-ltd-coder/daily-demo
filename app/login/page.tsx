@@ -3,7 +3,6 @@
 export const dynamic = 'force-dynamic'
 
 import { useState } from 'react'
-import { supabase } from '../../utils/supabase'
 import { useRouter } from 'next/navigation'
 import ThemeToggle from '../../components/ThemeToggle'
 
@@ -21,68 +20,17 @@ export default function Login() {
     setLoading(true)
     setError('')
 
-    try {
-      if (isSignUp) {
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              company_name: companyName
-            }
-          }
-        })
-
-        if (authError) throw authError
-
-        if (authData.user) {
-          let companyId = null
-
-          const { data: existingCompany } = await supabase
-            .from('companies')
-            .select('id')
-            .eq('name', companyName)
-            .single()
-
-          if (existingCompany) {
-            companyId = existingCompany.id
-          } else {
-            const { data: newCompany, error: companyError } = await supabase
-              .from('companies')
-              .insert([{ name: companyName }])
-              .select()
-              .single()
-
-            if (companyError) throw companyError
-            companyId = newCompany.id
-          }
-
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert([{
-              id: authData.user.id,
-              email: email,
-              company_id: companyId
-            }])
-
-          if (profileError) throw profileError
-        }
-
-        setError('確認メールを送信しました。メールをご確認ください。')
-      } else {
-        const { error: authError } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        })
-
-        if (authError) throw authError
-        router.push('/dashboard')
-      }
-    } catch (err: any) {
-      setError(err.message || 'エラーが発生しました')
-    } finally {
-      setLoading(false)
+    // デモモード: 入力があればダッシュボードに遷移
+    if (email && password) {
+      localStorage.setItem('demo_user', JSON.stringify({
+        email,
+        company_name: companyName || 'デモ企業'
+      }))
+      router.push('/dashboard')
+    } else {
+      setError('メールアドレスとパスワードを入力してください')
     }
+    setLoading(false)
   }
 
   return (
